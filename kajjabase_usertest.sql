@@ -79,7 +79,7 @@ SELECT fGetProductMargin('P0005');
 SELECT fGetWasteRatio('P0005');
 
 -- Format Currency
-SELECT fFormatCurrency(1250000);
+SELECT fFormatCurrency(80000);
 
 -- Sales Today
 SELECT * FROM vSalesToday;
