@@ -14,7 +14,7 @@ CREATE TABLE Customers (
 CREATE TABLE Products (
     Product_ID VARCHAR(10) PRIMARY KEY,
     Product_Name VARCHAR(50) NOT NULL,
-    Sell_Price DECIMAL(12, 2),
+    Sell_Price FLOAT(12, 2),
     status_del INT DEFAULT 0
 );
 
@@ -65,7 +65,7 @@ CREATE TABLE Sales_List (
     Product_ID VARCHAR(10),
     Sales_ID VARCHAR(10),
     Quantity INT,
-    Total_Price DECIMAL(12, 2),
+    Total_Price  FLOAT(12, 2),
     PRIMARY KEY (Product_ID, Sales_ID),
     FOREIGN KEY (Product_ID) REFERENCES Products(Product_ID),
     FOREIGN KEY (Sales_ID) REFERENCES Sales(Sales_ID)
@@ -76,7 +76,7 @@ CREATE TABLE Production (
                             Product_ID VARCHAR(5),
                             Date_In DATE,
                             Quantity INT,
-                            Production_Cost DECIMAL(12, 2),
+                            Production_Cost  FLOAT(12, 2),
                             status_del INT DEFAULT 0,
                             FOREIGN KEY (Product_ID) REFERENCES Products(Product_ID)
 );
@@ -86,7 +86,7 @@ CREATE TABLE Waste (
     Production_ID VARCHAR(10),
     Product_ID VARCHAR(10),
     Quantity INT,
-    Price DECIMAL(12, 2),
+    Price  FLOAT(12, 2),
     status_del INT DEFAULT 0,
     FOREIGN KEY (Production_ID) REFERENCES Production(Production_ID),
     FOREIGN KEY (Product_ID) REFERENCES Products(Product_ID)
@@ -196,10 +196,10 @@ SELECT p.Product_ID, p.Product_Name, fLiveStock(p.Product_ID) as Current_Stock
 FROM Products p WHERE fLiveStock(p.Product_ID) < 10;
 
 
-CREATE FUNCTION fEstCartTotal(parOrderID VARCHAR(10)) RETURNS DECIMAL(12,2)
+CREATE FUNCTION fEstCartTotal(parOrderID VARCHAR(10)) RETURNS  FLOAT(12, 2)
     DETERMINISTIC
 BEGIN
-    DECLARE v_Total DECIMAL(12,2);
+    DECLARE v_Total  FLOAT(12, 2);
     SELECT SUM(ol.Quantity * p.Sell_Price) INTO v_Total FROM Order_List ol JOIN Products p ON ol.Product_ID = p.Product_ID
     WHERE ol.Orders_ID = parOrderID;
     RETURN COALESCE(v_Total, 0.00);
@@ -225,17 +225,17 @@ BEGIN
     RETURN COALESCE(v_Avg, 0.0);
 END //
 
-CREATE FUNCTION fGetProductMargin(parProdID VARCHAR(10)) RETURNS DECIMAL(12,2)
+CREATE FUNCTION fGetProductMargin(parProdID VARCHAR(10)) RETURNS  FLOAT(12, 2)
     DETERMINISTIC
 BEGIN
-    DECLARE v_Sell DECIMAL(12,2);
-    DECLARE v_Cost DECIMAL(12,2);
+    DECLARE v_Sell  FLOAT(12, 2);
+    DECLARE v_Cost  FLOAT(12, 2);
     SELECT Sell_Price INTO v_Sell FROM Products WHERE Product_ID = parProdID;
     SELECT AVG(Production_Cost) INTO v_Cost FROM Production WHERE Product_ID = parProdID;
     RETURN (v_Sell - COALESCE(v_Cost,0));
 END //
 
-CREATE FUNCTION fFormatCurrency(parAmount DECIMAL(12,2)) RETURNS VARCHAR(50)
+CREATE FUNCTION fFormatCurrency(parAmount  FLOAT(12, 2)) RETURNS VARCHAR(50)
     DETERMINISTIC
 BEGIN
     RETURN CONCAT('Rp. ', FORMAT(parAmount, 2));
@@ -285,7 +285,7 @@ END //
 
 CREATE TRIGGER tAutoPrice BEFORE INSERT ON Sales_List FOR EACH ROW
 BEGIN
-    DECLARE v_Price DECIMAL(12,2);
+    DECLARE v_Price  FLOAT(12, 2);
     SELECT Sell_Price INTO v_Price FROM Products WHERE Product_ID = NEW.Product_ID;
     SET NEW.Total_Price = NEW.Quantity * v_Price;
 END //
@@ -341,7 +341,7 @@ BEGIN
     SELECT s.Sales_ID, s.Date_Completed, p.Product_Name, sl.Quantity, sl.Total_Price FROM Sales s JOIN Sales_List sl ON s.Sales_ID = sl.Sales_ID JOIN Products p ON sl.Product_ID = p.Product_ID JOIN Orders o ON s.Orders_ID = o.Orders_ID WHERE o.Customer_ID = parCustID ORDER BY s.Date_Completed DESC;
 END //
 
-CREATE PROCEDURE pAddNewProduct(IN parName VARCHAR(50), IN parPrice DECIMAL(12,2))
+CREATE PROCEDURE pAddNewProduct(IN parName VARCHAR(50), IN parPrice  FLOAT(12, 2))
 BEGIN
     DECLARE v_NewID VARCHAR(10);
     DECLARE v_Count INT;
@@ -351,7 +351,7 @@ BEGIN
     SELECT CONCAT('Product Added: ', v_NewID) AS Message;
 END //
 
-CREATE PROCEDURE pRecordProduction(IN parProdID VARCHAR(10), IN parQty INT, IN parCost DECIMAL(12,2))
+CREATE PROCEDURE pRecordProduction(IN parProdID VARCHAR(10), IN parQty INT, IN parCost  FLOAT(12, 2))
 BEGIN
     DECLARE v_NewID VARCHAR(10);
     DECLARE v_DateCode VARCHAR(6);

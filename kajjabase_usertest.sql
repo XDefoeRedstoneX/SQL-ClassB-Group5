@@ -1,6 +1,9 @@
 -- harus urut
 use kajjabase;
 
+-- Generate Customer ID
+SELECT fGenCustID('Zahck Snyder');
+
 -- Register a new customer
 CALL pRegisterCustomer('Zahck Snyder', 'zack@mail.com', 'pass123', '0811223344');
 SELECT * FROM customers;
@@ -60,6 +63,9 @@ CALL pCheckoutTrans(CONCAT('O', DATE_FORMAT(CURDATE(), '%d%m%y'),'01'), 'Transfe
 SELECT * FROM Orders WHERE Orders_ID = CONCAT('O', DATE_FORMAT(CURDATE(), '%d%m%y'),'01');
 SELECT * FROM Sales;
 
+-- Check Stock
+SELECT fLiveStock('P0005');
+
 -- Submit Review
 CALL pSubmitReview('ZAH01', CONCAT('S', DATE_FORMAT(CURDATE(), '%d%m%y'),'01'), 5, 'enaeeaeaenaeak!');
 SELECT * FROM feedback;
@@ -97,6 +103,28 @@ SELECT * FROM vLowStockAlert;
 -- Top Selling Products
 SELECT * FROM vTopSellingProducts;
 
+-- Insufficient Stock
+INSERT INTO Sales_List (Product_ID, Sales_ID, Quantity, Total_Price)
+VALUES ('P0001', 'S12112501', 9999999, 0);
+
+-- Validate Rating (1-5)
+INSERT INTO Feedback (Feedback_ID, Sales_ID, Customer_ID, Feedback_comment, Rating, status_del)
+VALUES ('FTEST_R', 'S12112501', 'BUD01', '1999999999/1000000', 100, 0);
+SELECT * FROM Feedback WHERE Feedback_ID = 'FTEST_R';
+
+-- Auto Close Order
+INSERT INTO Orders (Orders_ID, Customer_ID, Batch_ID, Date_In, Order_Status, Order_For_Date, status_del)
+VALUES ('O_TEST_CL', 'BUD01', 'B112501', CURDATE(), 0, CURDATE(), 0);
+SELECT Orders_ID, Order_Status FROM Orders WHERE Orders_ID = 'O_TEST_CL';
+INSERT INTO Sales (Sales_ID, Orders_ID, Date_Completed, Payment, status_del)
+VALUES ('S_TEST_CL', 'O_TEST_CL', CURDATE(), 'Cash', 0);
+SELECT Orders_ID, Order_Status FROM Orders WHERE Orders_ID = 'O_TEST_CL';
+
+-- Auto Sales Price
+INSERT INTO Sales_List (Product_ID, Sales_ID, Quantity, Total_Price)
+VALUES ('P0002', 'S_TEST_CL', 2, 0);
+SELECT Total_Price FROM Sales_List WHERE Sales_ID = 'S_TEST_CL' AND Product_ID = 'P0002';
+
 -- Prevent Future Date
 INSERT INTO Orders (Orders_ID, Customer_ID, Date_In, Order_Status, Order_For_Date, status_del)
 VALUES ('O9999', 'ZAC01', '2099-01-01', 0, '2099-01-01', 0);
@@ -105,10 +133,11 @@ VALUES ('O9999', 'ZAC01', '2099-01-01', 0, '2099-01-01', 0);
 INSERT INTO Customers (Customer_ID, Customer_Name, Cust_Email, Cust_Password, Cust_Number, status_del)
 VALUES ('BAD01', 'Fake', 'email.com', 'pass', '000', 0);
 
--- Stock Check
-INSERT INTO Sales_List (Product_ID, Sales_ID, Quantity, Total_Price)
-VALUES ('P0005', 'S07122501', 1000, 0);
-
 -- Prevent Delete Active Customer (Has Unfinished Orders)
 CALL pCreateOrder('ZAH01');
 UPDATE Customers SET status_del = 1 WHERE Customer_ID = 'ZAH01';
+
+-- Auto Fill Waste
+INSERT INTO Waste (Waste_ID, Production_ID, Product_ID, Quantity, Price, status_del)
+VALUES ('W_AUTO', 'PR01112501', NULL, 5, 0, 0);
+SELECT * FROM Waste WHERE Waste_ID = 'W_AUTO';
