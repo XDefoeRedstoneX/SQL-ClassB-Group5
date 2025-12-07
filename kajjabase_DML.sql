@@ -1,4 +1,6 @@
 USE kajjabase;
+
+
 INSERT INTO Customers (Customer_ID, Customer_Name, Cust_Email, Cust_Password, Cust_Number, status_del) VALUES
                                                                                                            ('BUD01', 'Budi Santoso', 'budi@mail.com', MD5('pass123'), '08123456789', 0),
                                                                                                            ('DIM01', 'Dimas Pratama', 'dimas@mail.com', MD5('pass123'), '08198765432', 0),
@@ -13,28 +15,34 @@ INSERT INTO Products (Product_ID, Product_Name, Sell_Price, status_del) VALUES
                                                                             ('P0003', 'Minion BapBap (Small)', 25000.00, 0),
                                                                             ('P0004', 'Minion BapBap (Large)', 35000.00, 0);
 
+INSERT INTO Batches (Batch_ID, Batch_Name, Open_Date, Close_Date, Delivery_Date, Status, status_del)
+VALUES ('B112501', 'Batch November', '2025-11-01 08:00:00', '2025-11-30 22:00:00', '2025-11-27', 0, 0);
+
 INSERT INTO Production (Production_ID, Product_ID, Date_In, Quantity, Production_Cost, status_del) VALUES
                                                                                                        ('PR01112501', 'P0001', '2025-11-01', 50, 10000.00, 0),
                                                                                                        ('PR01112502', 'P0002', '2025-11-01', 50, 12000.00, 0),
                                                                                                        ('PR01112503', 'P0003', '2025-11-01', 50, 10000.00, 0),
                                                                                                        ('PR01112504', 'P0004', '2025-11-01', 50, 12000.00, 0);
 
-INSERT INTO Orders (Orders_ID, Customer_ID, Date_In, Order_Status, Order_For_Date, status_del) VALUES
-    ('O12112501', 'BUD01', '2025-11-12', 2, '2025-11-12', 0);
+INSERT INTO Orders (Orders_ID, Customer_ID, Batch_ID, Date_In, Order_Status, Order_For_Date, status_del)
+VALUES ('O12112501', 'BUD01', 'B112501', '2025-11-12', 2, '2025-11-12', 0);
+
+INSERT INTO Orders (Orders_ID, Customer_ID, Batch_ID, Date_In, Order_Status, Order_For_Date, status_del)
+VALUES ('O18112501', 'DIM01', 'B112501', '2025-11-18', 2, '2025-11-18', 0);
+
+INSERT INTO Orders (Orders_ID, Customer_ID, Batch_ID, Date_In, Order_Status, Order_For_Date, status_del)
+VALUES ('O24112501', 'ASE01', 'B112501', '2025-11-24', 0, '2025-11-24', 0);
+
 
 INSERT INTO Order_List (Product_ID, Orders_ID, Quantity, Order_Date) VALUES
     ('P0001', 'O12112501', 1, '2025-11-12');
 
-INSERT INTO Orders (Orders_ID, Customer_ID, Date_In, Order_Status, Order_For_Date, status_del) VALUES
-    ('O18112501', 'DIM01', '2025-11-18', 2, '2025-11-18', 0);
+
 
 INSERT INTO Order_List (Product_ID, Orders_ID, Quantity, Order_Date) VALUES
                                                                          ('P0002', 'O18112501', 1, '2025-11-18'),
                                                                          ('P0003', 'O18112501', 1, '2025-11-18');
 
-
-INSERT INTO Orders (Orders_ID, Customer_ID, Date_In, Order_Status, Order_For_Date, status_del) VALUES
-    ('O24112501', 'ASE01', '2025-11-24', 0, '2025-11-24', 0);
 
 INSERT INTO Order_List (Product_ID, Orders_ID, Quantity, Order_Date) VALUES
                                                                          ('P0004', 'O24112501', 1, '2025-11-24'),

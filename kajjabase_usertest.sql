@@ -4,39 +4,37 @@ use kajjabase;
 -- Register a new customer
 CALL pRegisterCustomer('Zahck Snyder', 'zack@mail.com', 'pass123', '0811223344');
 SELECT * FROM customers;
--- Added 'ZAH01'
 
 -- Update Profile (Email)
 CALL pUpdateProfile('ZAH01', 'realzack@mail.com', '0811223344');
 SELECT * FROM customers;
--- New email 'realzack@mail.com'
 
 -- Add New Product
 CALL pAddNewProduct('Spicy BapBap (SUPER)', 40000);
 SELECT * FROM products;
--- Added 'P0005'
 
 -- Record Production
 CALL pRecordProduction('P0005', 30, 15000);
 SELECT * FROM production;
--- Added New 'PR...'
 
 -- Record Waste
 CALL pRecordWaste(CONCAT('PR', DATE_FORMAT(CURDATE(), '%d%m%y'),'01'),5);
 SELECT * FROM waste;
--- Added New 'W...'
-
 
 -- Generate ID for Order
 SET @futureID = null;
 CALL pOrderGenID('2026-01-01', @futureID);
 SELECT @futureID;
 
--- Create New Order
+-- Open Active Batch
+CALL pOpenBatch('Batch December', '2025-12-1 23:59:00', '2025-12-20');
+SELECT * FROM batches;
 
+-- Create New Order
 CALL pCreateOrder('ZAH01');
-SELECT * FROM customers;
--- Added New 'O....'
+SELECT * FROM orders;
+
+CALL pCloseBatch();
 
 -- Add Items
 CALL pAddItemToOrder(CONCAT('O', DATE_FORMAT(CURDATE(), '%d%m%y'),'01'), 'P0005', 2);

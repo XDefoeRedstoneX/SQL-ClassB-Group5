@@ -18,15 +18,29 @@ CREATE TABLE Products (
     status_del INT DEFAULT 0
 );
 
+CREATE TABLE Batches (
+                         Batch_ID VARCHAR(10) PRIMARY KEY,
+                         Batch_Name VARCHAR(50),
+                         Open_Date DATETIME,
+                         Close_Date DATETIME,
+                         Delivery_Date Date,
+                         Status INT DEFAULT 1,
+                         status_del INT DEFAULT 0
+);
+
+
 CREATE TABLE Orders (
     Orders_ID VARCHAR(10) PRIMARY KEY,
     Customer_ID VARCHAR(10),
+    Batch_ID VARCHAR(10),
     Date_In DATE,
     Order_Status INT DEFAULT 0,
     Order_For_Date DATE,
     status_del INT DEFAULT 0,
-    FOREIGN KEY (Customer_ID) REFERENCES Customers(Customer_ID)
+    FOREIGN KEY (Customer_ID) REFERENCES Customers(Customer_ID),
+    FOREIGN KEY (Batch_ID) REFERENCES Batches(Batch_ID)
 );
+
 
 CREATE TABLE Order_List (
     Product_ID VARCHAR(10),
@@ -80,12 +94,12 @@ CREATE TABLE Waste (
 
 CREATE TABLE Feedback (
     Feedback_ID VARCHAR(10) PRIMARY KEY,
-    Sales_ID VARCHAR(10),       
+    Sales_ID VARCHAR(10),
     Customer_ID VARCHAR(10),
     feedback_comment TEXT,
     Rating INT,
     status_del INT DEFAULT 0,
-    FOREIGN KEY (Sales_ID) REFERENCES Sales(Sales_ID), 
+    FOREIGN KEY (Sales_ID) REFERENCES Sales(Sales_ID),
     FOREIGN KEY (Customer_ID) REFERENCES Customers(Customer_ID)
 );
 
@@ -161,7 +175,8 @@ DROP PROCEDURE IF EXISTS pCreateOrder;
 DROP PROCEDURE IF EXISTS pRemoveItemFromOrder;
 DROP PROCEDURE IF EXISTS pUpdateStatus;
 DROP PROCEDURE IF EXISTS pGetCustomerHistory;
-
+DROP PROCEDURE IF EXISTS pOpenBatch;
+DROP PROCEDURE IF EXISTS pCloseBatch;
     DELIMITER //
 
 CREATE FUNCTION fLiveStock(parProdID VARCHAR(10)) RETURNS INT
@@ -365,11 +380,22 @@ BEGIN
     DECLARE v_NewID VARCHAR(10);
     DECLARE v_DateCode VARCHAR(6);
     DECLARE v_Count INT;
-    SET v_DateCode = DATE_FORMAT(CURDATE(), '%d%m%y');
-    SELECT COUNT(*) INTO v_Count FROM Orders WHERE Order_For_Date = CURDATE();
-    SET v_NewID = CONCAT('O', v_DateCode, LPAD(v_Count + 1, 2, '0'));
-    INSERT INTO Orders (Orders_ID, Customer_ID, Date_In, Order_Status, Order_For_Date, status_del) VALUES (v_NewID, parCustID, CURDATE(), 0, CURDATE(), 0);
-    SELECT CONCAT('Order Created: ', v_NewID) AS Message;
+    DECLARE v_ActiveBatchID VARCHAR(10);
+
+    SELECT Batch_ID INTO v_ActiveBatchID FROM Batches WHERE Status = 1 LIMIT 1;
+
+    IF v_ActiveBatchID IS NULL THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Error: Pre-Order is CLOSED. Cannot place order now.';
+    ELSE
+        SET v_DateCode = DATE_FORMAT(CURDATE(), '%d%m%y');
+        SELECT COUNT(*) INTO v_Count FROM Orders WHERE Order_For_Date = CURDATE();
+        SET v_NewID = CONCAT('O', v_DateCode, LPAD(v_Count + 1, 2, '0'));
+
+        INSERT INTO Orders (Orders_ID, Customer_ID, Batch_ID, Date_In, Order_Status, Order_For_Date, status_del)
+        VALUES (v_NewID, parCustID, v_ActiveBatchID, CURDATE(), 0, CURDATE(), 0);
+
+        SELECT CONCAT('Order Placed in ', v_ActiveBatchID) AS Message;
+    END IF;
 END //
 
 CREATE PROCEDURE pAddItemToOrder(IN parOrderID VARCHAR(10), IN parProdID VARCHAR(10), IN parQty INT)
@@ -402,17 +428,6 @@ BEGIN
     SELECT 'Status Updated' AS Message;
 END //
 
-CREATE PROCEDURE pCancelOrder(IN parOrderID VARCHAR(10))
-BEGIN
-    DECLARE v_Status INT;
-    SELECT Order_Status INTO v_Status FROM Orders WHERE Orders_ID = parOrderID;
-    IF v_Status != 2 THEN
-        UPDATE Orders SET status_del = 1 WHERE Orders_ID = parOrderID;
-        SELECT 'Order Cancelled' AS Message;
-    ELSE
-        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Cannot cancel a completed order';
-    END IF;
-END //
 
 CREATE PROCEDURE pCheckoutTrans(IN parOrderID VARCHAR(10), IN parPayment VARCHAR(15))
 BEGIN
@@ -458,6 +473,50 @@ BEGIN
     SELECT COUNT(*) INTO v_Count FROM Orders WHERE Order_For_Date = parDate;
     SET v_Suffix = LPAD(v_Count + 1, 2, '0');
     SET parID = CONCAT('O', v_DateCode, v_Suffix);
+END //
+
+CREATE PROCEDURE pOpenBatch(
+    IN parName VARCHAR(50),
+    IN parCloseDate DATETIME,
+    IN parDeliveryDate DATE
+)
+BEGIN
+    DECLARE v_NewID VARCHAR(10);
+    DECLARE v_DateCode VARCHAR(6);
+    DECLARE v_Count INT;
+    DECLARE v_CheckActive INT;
+
+    SELECT COUNT(*) INTO v_CheckActive FROM Batches WHERE Status = 1;
+
+    IF v_CheckActive > 0 THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Error: A Batch is already OPEN. Close it first.';
+    ELSE
+        SET v_DateCode = DATE_FORMAT(NOW(), '%d%m%y');
+        SELECT COUNT(*) INTO v_Count FROM Batches WHERE DATE(Open_Date) = CURDATE();
+        SET v_NewID = CONCAT('B', v_DateCode, LPAD(v_Count + 1, 2, '0'));
+
+        INSERT INTO Batches (Batch_ID, Batch_Name, Open_Date, Close_Date, Delivery_Date, Status, status_del)
+        VALUES (v_NewID, parName, NOW(), parCloseDate, parDeliveryDate, 1, 0);
+
+        SELECT CONCAT('Pre-Order Started: ', v_NewID) AS Message;
+    END IF;
+END //
+
+CREATE PROCEDURE pCloseBatch()
+BEGIN
+    DECLARE v_BatchID VARCHAR(10);
+
+SELECT Batch_ID INTO v_BatchID FROM Batches WHERE Status = 1 LIMIT 1;
+
+IF v_BatchID IS NOT NULL THEN
+UPDATE Batches
+SET Close_Date = NOW(), Status = 0
+WHERE Batch_ID = v_BatchID;
+
+SELECT CONCAT('Pre-Order Closed for: ', v_BatchID) AS Message;
+ELSE
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Error: No Open Batch found.';
+END IF;
 END //
 
 DELIMITER ;
