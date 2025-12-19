@@ -5,14 +5,16 @@
 use kajjabase;
 
 -- Generate Customer ID
-SELECT fGenCustID('Zahck Snyder');
+SELECT fGenCustID('Zahck Snyder') as 'Generated ID';
 
 -- Register a new customer
-CALL pRegisterCustomer('Zahck Snyder', 'zack@mail.com', 'pass123', '0811223344');
+CALL pRegisterCustomer('Zahck Snyder', 'zack@mail.com', 
+						'pass123', '0811223344');
 SELECT * FROM customers;
 
 -- Update Profile (NULL = Same)
-CALL pUpdateProfile('ZAH01', 'realzack@mail.com', '0811223344');
+CALL pUpdateProfile('ZAH01', 'realzack@mail.com', 
+					'0811223344');
 CALL pUpdateProfile('BUD01', NULL, '08999999999');
 SELECT * FROM customers;
 
@@ -25,7 +27,8 @@ CALL pRecordProduction('P0005', 30, 15000);
 SELECT * FROM production;
 
 -- Record Waste
-CALL pRecordWaste(CONCAT('PR', DATE_FORMAT(CURDATE(), '%d%m%y'),'01'),5);
+CALL pRecordWaste(CONCAT('PR', DATE_FORMAT(CURDATE(), 
+					'%d%m%y'),'01'),5);
 SELECT * FROM waste;
 
 -- Generate ID for Order
@@ -34,7 +37,8 @@ CALL pOrderGenID('2026-01-01', @futureID);
 SELECT @futureID;
 
 -- Open Active Batch
-CALL pOpenBatch('Batch December', '2025-12-1 23:59:00', '2025-12-20');
+CALL pOpenBatch('Batch December', 
+				'2025-12-1 23:59:00', '2025-12-20');
 SELECT * FROM batches;
 
 -- Create New Order
@@ -46,50 +50,63 @@ CALL pCloseBatch();
 SELECT * FROM batches;
 
 -- Add Items
-CALL pAddItemToOrder(CONCAT('O', DATE_FORMAT(CURDATE(), '%d%m%y'),'01'), 'P0005', 2);
-CALL pAddItemToOrder(CONCAT('O', DATE_FORMAT(CURDATE(), '%d%m%y'),'01'), 'P0001', 1);
-SELECT * FROM order_list WHERE Orders_ID = CONCAT('O', DATE_FORMAT(CURDATE(), '%d%m%y'),'01');
+CALL pAddItemToOrder(CONCAT('O', DATE_FORMAT(CURDATE(), 
+					'%d%m%y'),'01'), 'P0005', 20);
+CALL pAddItemToOrder(CONCAT('O', DATE_FORMAT(CURDATE(), 
+					'%d%m%y'),'01'), 'P0001', 1);
+SELECT * FROM order_list WHERE Orders_ID = CONCAT('O', 
+					DATE_FORMAT(CURDATE(), '%d%m%y'),'01');
 
 -- Remove Item
-CALL pRemoveItemFromOrder(CONCAT('O', DATE_FORMAT(CURDATE(), '%d%m%y'),'01'), 'P0001');
-SELECT * FROM order_list WHERE Orders_ID = CONCAT('O', DATE_FORMAT(CURDATE(), '%d%m%y'),'01');
+CALL pRemoveItemFromOrder(CONCAT('O', DATE_FORMAT(CURDATE(), 
+						'%d%m%y'),'01'), 'P0001');
+SELECT * FROM order_list WHERE Orders_ID = CONCAT('O', DATE_FORMAT(CURDATE(), 
+													'%d%m%y'),'01');
 
 -- Check Cart Total
-SELECT fEstCartTotal(CONCAT('O', DATE_FORMAT(CURDATE(), '%d%m%y'),'01'));
+SELECT fEstCartTotal(CONCAT('O', DATE_FORMAT(CURDATE(), 
+							'%d%m%y'),'01')) as 'Total Cart';
 
--- Pending Orders (Order_Status = 0)
+-- Pending Orders (Order_Status = 0 || 1)
 SELECT * FROM vPendingOrder;
 
 -- Manual Status Update (1 = to Deliver)
-CALL pUpdateStatus(CONCAT('O', DATE_FORMAT(CURDATE(), '%d%m%y'),'01'), 1);
-SELECT * FROM Orders WHERE Orders_ID = CONCAT('O', DATE_FORMAT(CURDATE(), '%d%m%y'),'01');
+CALL pUpdateStatus(CONCAT('O', 
+						DATE_FORMAT(CURDATE(), '%d%m%y'), '01'), 1);
+SELECT * FROM Orders WHERE Orders_ID = CONCAT('O', 
+											DATE_FORMAT(CURDATE(), 
+											'%d%m%y'),'01');
 
 -- Pay for Order
-CALL pCheckoutTrans(CONCAT('O', DATE_FORMAT(CURDATE(), '%d%m%y'),'01'), 'Transfer');
-SELECT * FROM Orders WHERE Orders_ID = CONCAT('O', DATE_FORMAT(CURDATE(), '%d%m%y'),'01');
+CALL pCheckoutTrans(CONCAT('O', DATE_FORMAT(CURDATE(), 
+							'%d%m%y'),'01'), 'Transfer');
+SELECT * FROM Orders WHERE Orders_ID = CONCAT('O', DATE_FORMAT(CURDATE(), 
+											'%d%m%y'),'01');
 SELECT * FROM Sales;
 
 -- Check Stock
-SELECT fLiveStock('P0005');
+SELECT fLiveStock('P0005') as 'Live Stock';
 
 -- Submit Review
-CALL pSubmitReview('ZAH01', CONCAT('S', DATE_FORMAT(CURDATE(), '%d%m%y'),'01'), 5, 'enaeeaeaenaeak!');
+CALL pSubmitReview('ZAH01', CONCAT('S', 
+					DATE_FORMAT(CURDATE(), '%d%m%y'),
+					'01'), 5, 'enaeeaeaenaeak!');
 SELECT * FROM feedback;
 
 -- Check Customer History
 CALL pGetCustomerHistory('ZAH01');
 
 -- Check Average Rating
-SELECT fGetAvgRating('P0005');
+SELECT fGetAvgRating('P0005') as 'Average Rating';
 
 -- Check Profit Margin
-SELECT fGetProductMargin('P0005');
+SELECT fGetProductMargin('P0005') as 'Margin';
 
 -- Check Waste Ratio (Percentage)
-SELECT fGetWasteRatio('P0005');
+SELECT fGetWasteRatio('P0005') as 'Waste Ratio';
 
 -- Format Currency
-SELECT fFormatCurrency(80000);
+SELECT fFormatCurrency(80000) as 'Currency';
 
 -- Sales Today
 SELECT * FROM vSalesToday;
@@ -97,7 +114,7 @@ SELECT * FROM vSalesToday;
 -- Best Customers
 SELECT * FROM vBestCustomers;
 
--- Pending Orders (Order_Status = 0)
+-- Pending Orders (Order_Status = 0 || 1)
 SELECT * FROM vPendingOrder;
 
 -- Real Profitability (From Production Cost & Waste)
@@ -110,7 +127,8 @@ SELECT * FROM vLowStockAlert;
 SELECT * FROM vTopSellingProducts;
 
 -- Insufficient Stock
-INSERT INTO Sales_List (Product_ID, Sales_ID, Quantity, Total_Price)
+INSERT INTO Sales_List (Product_ID, Sales_ID, 
+						Quantity, Total_Price)
 VALUES ('P0001', 'S12112501', 9999999, 0);
 
 -- Validate Rating (1-5)
@@ -147,3 +165,7 @@ UPDATE Customers SET status_del = 1 WHERE Customer_ID = 'ZAH01';
 INSERT INTO Waste (Waste_ID, Production_ID, Product_ID, Quantity, Price, status_del)
 VALUES ('W_AUTO', 'PR01112501', NULL, 5, 0, 0);
 SELECT * FROM Waste WHERE Waste_ID = 'W_AUTO';
+
+
+
+
