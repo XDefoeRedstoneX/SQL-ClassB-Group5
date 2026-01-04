@@ -8,5 +8,6 @@ Made by:
 
 How to use:
 1. Run DDL
-2. Run DML
-3. Run User Test (In Order)
+2. Run PLSQL
+3. Run DML
+4. Run User Test (In Order)
