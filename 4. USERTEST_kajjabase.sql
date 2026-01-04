@@ -33,12 +33,16 @@ SELECT * FROM waste;
 
 -- Generate ID for Order
 SET @futureID = null;
-CALL pOrderGenID('2026-01-01', @futureID);
+CALL pOrderGenID('2027-01-01', @futureID);
 SELECT @futureID;
 
 -- Open Active Batch
+<<<<<<< Updated upstream:4. USERTEST_kajjabase.sql
 CALL pOpenBatch('Batch December', 
 				'2025-12-1 23:59:00', '2025-12-20');
+=======
+CALL pOpenBatch('Batch Januari', '2026-1-31 23:59:00', '2025-2-1');
+>>>>>>> Stashed changes:kajjabase_usertest.sql
 SELECT * FROM batches;
 
 -- Create New Order
@@ -133,8 +137,8 @@ VALUES ('P0001', 'S12112501', 9999999, 0);
 
 -- Validate Rating (1-5)
 INSERT INTO Feedback (Feedback_ID, Sales_ID, Customer_ID, Feedback_comment, Rating, status_del)
-VALUES ('FTEST_R', 'S12112501', 'BUD01', '1999999999/1000000', 100, 0);
-SELECT * FROM Feedback WHERE Feedback_ID = 'FTEST_R';
+VALUES ('FTESTER', 'S12112501', 'BUD01', '1999999999/1000000', 100, 0);
+SELECT * FROM Feedback WHERE Feedback_ID = 'FTESTER';
 
 -- Auto Close Order
 INSERT INTO Orders (Orders_ID, Customer_ID, Batch_ID, Date_In, Order_Status, Order_For_Date, status_del)
@@ -158,8 +162,10 @@ INSERT INTO Customers (Customer_ID, Customer_Name, Cust_Email, Cust_Password, Cu
 VALUES ('BAD01', 'Fake', 'email.com', 'pass', '000', 0);
 
 -- Prevent Delete Active Customer (Has Unfinished Orders)
+CALL pOpenBatch('Batch Febuari', '2026-2-28 23:59:00', '2026-3-1');
 CALL pCreateOrder('ZAH01');
 UPDATE Customers SET status_del = 1 WHERE Customer_ID = 'ZAH01';
+SELECT * FROM customers;
 
 -- Auto Fill Waste
 INSERT INTO Waste (Waste_ID, Production_ID, Product_ID, Quantity, Price, status_del)

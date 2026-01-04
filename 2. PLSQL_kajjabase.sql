@@ -255,8 +255,12 @@ BEGIN
     UPDATE Customers
     SET Cust_Email =
         CASE
+<<<<<<< Updated upstream:2. PLSQL_kajjabase.sql
             WHEN parNewEmail IS NULL OR parNewEmail = '' 
                 THEN Cust_Email
+=======
+            WHEN parNewEmail IS NULL OR parNewEmail = '' THEN Cust_Email
+>>>>>>> Stashed changes:kajjabase_DDL.sql
             ELSE parNewEmail
         END,
         Cust_Number =
@@ -478,27 +482,54 @@ BEGIN
     SET parID = CONCAT('O', v_DateCode, v_Suffix);
 END //
 
+<<<<<<< Updated upstream:2. PLSQL_kajjabase.sql
 -- pOpenBatch
 CREATE PROCEDURE pOpenBatch(IN parName VARCHAR(50), IN parCloseDate DATETIME, IN parDeliveryDate DATE)
+=======
+DROP PROCEDURE IF EXISTS pOpenBatch;
+DELIMITER //
+CREATE PROCEDURE pOpenBatch(
+    IN parName VARCHAR(50),
+    IN parCloseDate DATETIME,
+    IN parDeliveryDate DATE
+)
+>>>>>>> Stashed changes:kajjabase_DDL.sql
 BEGIN
     DECLARE v_NewID VARCHAR(10);
     DECLARE v_DateCode VARCHAR(6);
     DECLARE v_Count INT;
     DECLARE v_CheckActive INT;
 
+<<<<<<< Updated upstream:2. PLSQL_kajjabase.sql
     SELECT COUNT(*) INTO v_CheckActive 
     FROM Batches 
     WHERE Status = 1;
+=======
+    IF parCloseDate <= NOW() THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Error: Batch Close Date must be in the future.';
+    END IF;
+
+    IF parDeliveryDate < DATE(parCloseDate) THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Error: Delivery Date cannot be before the Batch closes.';
+    END IF;
+
+    SELECT COUNT(*) INTO v_CheckActive FROM Batches WHERE Status = 1;
+>>>>>>> Stashed changes:kajjabase_DDL.sql
 
     IF v_CheckActive > 0 THEN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Error: A Batch is already OPEN. Close it first.';
     ELSE
+<<<<<<< Updated upstream:2. PLSQL_kajjabase.sql
         SET v_DateCode = DATE_FORMAT(NOW(), '%d%m%y');
 
         SELECT COUNT(*) INTO v_Count 
         FROM Batches 
         WHERE DATE(Open_Date) = CURDATE();
 
+=======
+        SET v_DateCode = DATE_FORMAT(NOW(), '%m%y');
+        SELECT COUNT(*) INTO v_Count FROM Batches WHERE DATE(Open_Date) = CURDATE();
+>>>>>>> Stashed changes:kajjabase_DDL.sql
         SET v_NewID = CONCAT('B', v_DateCode, LPAD(v_Count + 1, 2, '0'));
 
         INSERT INTO Batches (Batch_ID, Batch_Name, Open_Date, Close_Date, Delivery_Date, Status, status_del)
@@ -507,6 +538,7 @@ BEGIN
         SELECT CONCAT('Pre-Order Started: ', v_NewID) AS Message;
     END IF;
 END //
+DELIMITER ;
 
 -- pCloseBatch
 CREATE PROCEDURE pCloseBatch()
