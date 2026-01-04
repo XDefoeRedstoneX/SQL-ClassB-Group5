@@ -37,12 +37,8 @@ CALL pOrderGenID('2027-01-01', @futureID);
 SELECT @futureID;
 
 -- Open Active Batch
-<<<<<<< Updated upstream:4. USERTEST_kajjabase.sql
-CALL pOpenBatch('Batch December', 
-				'2025-12-1 23:59:00', '2025-12-20');
-=======
-CALL pOpenBatch('Batch Januari', '2026-1-31 23:59:00', '2025-2-1');
->>>>>>> Stashed changes:kajjabase_usertest.sql
+CALL pOpenBatch('Batch December', '2025-12-1 23:59:00', '2025-12-20');
+CALL pOpenBatch('Batch Januari', '2026-1-31 23:59:00', '2026-2-1');
 SELECT * FROM batches;
 
 -- Create New Order

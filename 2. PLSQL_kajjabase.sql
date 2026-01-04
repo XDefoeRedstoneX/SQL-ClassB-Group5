@@ -1,9 +1,10 @@
+use kajjabase;
 /*==============================================================*/
 /* VIEWS                                                        */
 /*==============================================================*/
 -- vSalesToday
 CREATE OR REPLACE VIEW vSalesToday AS
-    SELECT s.Sales_ID, s.Date_Completed, SUM(sl.Total_Price) as Daily_Revenue 
+    SELECT s.Sales_ID, s.Date_Completed, SUM(sl.Total_Price) as Daily_Revenue
     FROM Sales s
     JOIN Sales_List sl ON s.Sales_ID = sl.Sales_ID
     WHERE s.Date_Completed = CURDATE()
@@ -12,7 +13,7 @@ CREATE OR REPLACE VIEW vSalesToday AS
 -- vBestCustomers
 CREATE OR REPLACE VIEW vBestCustomers AS
     SELECT c.Customer_Name, COUNT(DISTINCT s.Sales_ID) as Total_Transactions,
-           SUM(sl.Total_Price) as Total_Value 
+           SUM(sl.Total_Price) as Total_Value
     FROM Customers c
     JOIN Orders o ON c.Customer_ID = o.Customer_ID
     JOIN Sales s ON o.Orders_ID = s.Orders_ID
@@ -23,7 +24,7 @@ CREATE OR REPLACE VIEW vBestCustomers AS
 -- vPendingOrder
 CREATE OR REPLACE VIEW vPendingOrder AS
 SELECT o.Orders_ID, c.Customer_Name, o.Order_For_Date,
-CASE 
+CASE
 	WHEN o.Order_Status = 0 THEN 'Process'
 	WHEN o.Order_Status = 1 THEN 'Delivery'
 	WHEN o.Order_Status = 2 THEN 'Done'
@@ -51,17 +52,13 @@ GROUP BY p.Product_ID, p.Product_Name;
 
 -- vTopSellingProducts
 CREATE OR REPLACE VIEW vTopSellingProducts AS
-    SELECT p.Product_Name, SUM(sl.Quantity) as Units_Sold 
+    SELECT p.Product_Name, SUM(sl.Quantity) as Units_Sold
     FROM Products p
     JOIN Sales_List sl ON p.Product_ID = sl.Product_ID
 GROUP BY p.Product_Name
 ORDER BY Units_Sold DESC;
 
--- vLowStockAlert
-CREATE OR REPLACE VIEW vLowStockAlert AS
-SELECT p.Product_ID, p.Product_Name, fLiveStock(p.Product_ID) as Current_Stock
-FROM Products p 
-WHERE fLiveStock(p.Product_ID) < 10;
+
 
 
 DROP FUNCTION IF EXISTS fFormatCurrency;
@@ -79,6 +76,7 @@ DROP PROCEDURE IF EXISTS pRegisterCustomer;
 DROP PROCEDURE IF EXISTS pUpdateProfile;
 DROP PROCEDURE IF EXISTS pAddItemToOrder;
 DROP PROCEDURE IF EXISTS pRecordProduction;
+DROP PROCEDURE IF EXISTS pRecordWaste;
 DROP PROCEDURE IF EXISTS pAddNewProduct;
 DROP PROCEDURE IF EXISTS pCreateOrder;
 DROP PROCEDURE IF EXISTS pRemoveItemFromOrder;
@@ -97,43 +95,51 @@ DROP TRIGGER IF EXISTS tPreventDeleteActiveCustomer;
 DROP TRIGGER IF EXISTS tPreventFutureDate;
 
 DELIMITER //
-
-/*==============================================================*/
-/* FUNCTION                                                     */
-/*==============================================================*/
--- fLiveStock
-CREATE FUNCTION fLiveStock(parProdID VARCHAR(10)) 
-RETURNS INT
-DETERMINISTIC
+-- fLiveStock (!!FUNCTION!!)
+CREATE FUNCTION fLiveStock(parProdID VARCHAR(10))
+    RETURNS INT
+    DETERMINISTIC
 BEGIN
     DECLARE v_Prod INT DEFAULT 0;
     DECLARE v_Sold INT DEFAULT 0;
     DECLARE v_Waste INT DEFAULT 0;
 
-    SELECT COALESCE(SUM(Quantity),0) INTO v_Prod 
-    FROM Production 
+    SELECT COALESCE(SUM(Quantity),0) INTO v_Prod
+    FROM Production
     WHERE Product_ID = parProdID;
 
-    SELECT COALESCE(SUM(Quantity),0) INTO v_Sold 
-    FROM Sales_List 
+    SELECT COALESCE(SUM(Quantity),0) INTO v_Sold
+    FROM Sales_List
     WHERE Product_ID = parProdID;
 
-    SELECT COALESCE(SUM(Quantity),0) INTO v_Waste 
-    FROM Waste 
+    SELECT COALESCE(SUM(Quantity),0) INTO v_Waste
+    FROM Waste
     WHERE Product_ID = parProdID;
 
     RETURN (v_Prod - v_Sold - v_Waste);
 END //
+DELIMITER ;
 
+-- vLowStockAlert (!!VIEW!!)
+CREATE OR REPLACE VIEW vLowStockAlert AS
+SELECT p.Product_ID, p.Product_Name, fLiveStock(p.Product_ID) as Current_Stock
+FROM Products p
+WHERE fLiveStock(p.Product_ID) < 10;
+
+/*==============================================================*/
+/* FUNCTION                                                     */
+/*==============================================================*/
+
+DELIMITER //
 -- fEstCartTotal
-CREATE FUNCTION fEstCartTotal(parOrderID VARCHAR(10)) 
+CREATE FUNCTION fEstCartTotal(parOrderID VARCHAR(10))
 RETURNS FLOAT(12, 2)
 DETERMINISTIC
 BEGIN
     DECLARE v_Total  FLOAT(12, 2);
 
-    SELECT SUM(ol.Quantity * p.Sell_Price) INTO v_Total 
-    FROM Order_List ol 
+    SELECT SUM(ol.Quantity * p.Sell_Price) INTO v_Total
+    FROM Order_List ol
     JOIN Products p ON ol.Product_ID = p.Product_ID
     WHERE ol.Orders_ID = parOrderID;
 
@@ -141,7 +147,7 @@ BEGIN
 END //
 
 -- fGenCustID
-CREATE FUNCTION fGenCustID(parCustName VARCHAR(255)) 
+CREATE FUNCTION fGenCustID(parCustName VARCHAR(255))
 RETURNS VARCHAR(10)
 DETERMINISTIC
 BEGIN
@@ -149,10 +155,10 @@ BEGIN
     DECLARE v_Count INT;
     DECLARE v_Suffix VARCHAR(2);
     SET v_Prefix = UPPER(SUBSTRING(parCustName, 1, 3));
-    
-    SELECT COUNT(*) INTO v_Count 
-    FROM Customers 
-    WHERE Customer_ID 
+
+    SELECT COUNT(*) INTO v_Count
+    FROM Customers
+    WHERE Customer_ID
     LIKE CONCAT(v_Prefix, '%');
 
     SET v_Suffix = LPAD(v_Count + 1, 2, '0');
@@ -160,42 +166,42 @@ BEGIN
 END //
 
 -- fGetAvgRating
-CREATE FUNCTION fGetAvgRating(parProdID VARCHAR(10)) 
+CREATE FUNCTION fGetAvgRating(parProdID VARCHAR(10))
 RETURNS DECIMAL(3,1)
 DETERMINISTIC
 BEGIN
     DECLARE v_Avg DECIMAL(3,1);
-    
-    SELECT AVG(f.Rating) INTO v_Avg 
-    FROM Feedback f 
-    JOIN Sales s ON f.Sales_ID = s.Sales_ID 
-    JOIN Sales_List sl ON s.Sales_ID = sl.Sales_ID 
+
+    SELECT AVG(f.Rating) INTO v_Avg
+    FROM Feedback f
+    JOIN Sales s ON f.Sales_ID = s.Sales_ID
+    JOIN Sales_List sl ON s.Sales_ID = sl.Sales_ID
     WHERE sl.Product_ID = parProdID;
 
     RETURN COALESCE(v_Avg, 0.0);
 END //
 
 -- fGetProductMargin
-CREATE FUNCTION fGetProductMargin(parProdID VARCHAR(10)) 
+CREATE FUNCTION fGetProductMargin(parProdID VARCHAR(10))
 RETURNS FLOAT(12, 2)
 DETERMINISTIC
 BEGIN
     DECLARE v_Sell  FLOAT(12, 2);
     DECLARE v_Cost  FLOAT(12, 2);
-    
-    SELECT Sell_Price INTO v_Sell 
-    FROM Products 
+
+    SELECT Sell_Price INTO v_Sell
+    FROM Products
     WHERE Product_ID = parProdID;
 
-    SELECT AVG(Production_Cost) INTO v_Cost 
-    FROM Production 
+    SELECT AVG(Production_Cost) INTO v_Cost
+    FROM Production
     WHERE Product_ID = parProdID;
 
     RETURN (v_Sell - COALESCE(v_Cost,0));
 END //
 
 -- fFormatCurrency
-CREATE FUNCTION fFormatCurrency(parAmount  FLOAT(12, 2)) 
+CREATE FUNCTION fFormatCurrency(parAmount  FLOAT(12, 2))
 RETURNS VARCHAR(50)
 DETERMINISTIC
 BEGIN
@@ -203,33 +209,33 @@ BEGIN
 END //
 
 -- fGetWasteRatio
-CREATE FUNCTION fGetWasteRatio(parProdID VARCHAR(10)) 
+CREATE FUNCTION fGetWasteRatio(parProdID VARCHAR(10))
 RETURNS DECIMAL(5,2)
 DETERMINISTIC
 BEGIN
     DECLARE v_Prod INT;
     DECLARE v_Waste INT;
-    
-    SELECT COALESCE(SUM(Quantity),0) INTO v_Prod 
-    FROM Production 
+
+    SELECT COALESCE(SUM(Quantity),0) INTO v_Prod
+    FROM Production
     WHERE Product_ID = parProdID;
 
-    SELECT COALESCE(SUM(w.Quantity),0) INTO v_Waste 
-    FROM Waste w JOIN Production pr ON w.Production_ID = pr.Production_ID 
+    SELECT COALESCE(SUM(w.Quantity),0) INTO v_Waste
+    FROM Waste w JOIN Production pr ON w.Production_ID = pr.Production_ID
     WHERE pr.Product_ID = parProdID;
 
     IF v_Prod = 0 THEN RETURN 0.00; END IF;
     RETURN (v_Waste / v_Prod) * 100;
 END //
 
-  
+
 /*==============================================================*/
 /* PROCEDURE                                                    */
 /*==============================================================*/
 -- pRegisterCustomer
-CREATE PROCEDURE pRegisterCustomer(IN parName VARCHAR(255), 
-                                    IN parEmail VARCHAR(255), 
-                                    IN parPass VARCHAR(255), 
+CREATE PROCEDURE pRegisterCustomer(IN parName VARCHAR(255),
+                                    IN parEmail VARCHAR(255),
+                                    IN parPass VARCHAR(255),
                                     IN parPhone VARCHAR(20))
 BEGIN
     DECLARE v_NewID VARCHAR(10);
@@ -238,9 +244,9 @@ BEGIN
     DECLARE v_Suffix VARCHAR(2);
     SET v_Prefix = UPPER(SUBSTRING(parName, 1, 3));
 
-    SELECT COUNT(*) INTO v_Count 
-    FROM Customers 
-    WHERE Customer_ID 
+    SELECT COUNT(*) INTO v_Count
+    FROM Customers
+    WHERE Customer_ID
     LIKE CONCAT(v_Prefix, '%');
 
     SET v_Suffix = LPAD(v_Count + 1, 2, '0');
@@ -255,17 +261,14 @@ BEGIN
     UPDATE Customers
     SET Cust_Email =
         CASE
-<<<<<<< Updated upstream:2. PLSQL_kajjabase.sql
-            WHEN parNewEmail IS NULL OR parNewEmail = '' 
+            WHEN parNewEmail IS NULL OR parNewEmail = ''
                 THEN Cust_Email
-=======
             WHEN parNewEmail IS NULL OR parNewEmail = '' THEN Cust_Email
->>>>>>> Stashed changes:kajjabase_DDL.sql
             ELSE parNewEmail
         END,
         Cust_Number =
         CASE
-            WHEN parNewPhone IS NULL OR parNewPhone = '' 
+            WHEN parNewPhone IS NULL OR parNewPhone = ''
               THEN Cust_Number
             ELSE parNewPhone
         END
@@ -277,12 +280,12 @@ END //
 -- pGetCustomerHistory
 CREATE PROCEDURE pGetCustomerHistory(IN parCustID VARCHAR(10))
 BEGIN
-    SELECT s.Sales_ID, s.Date_Completed, p.Product_Name, sl.Quantity, sl.Total_Price 
-    FROM Sales s 
-    JOIN Sales_List sl ON s.Sales_ID = sl.Sales_ID 
-    JOIN Products p ON sl.Product_ID = p.Product_ID 
-    JOIN Orders o ON s.Orders_ID = o.Orders_ID 
-    WHERE o.Customer_ID = parCustID 
+    SELECT s.Sales_ID, s.Date_Completed, p.Product_Name, sl.Quantity, sl.Total_Price
+    FROM Sales s
+    JOIN Sales_List sl ON s.Sales_ID = sl.Sales_ID
+    JOIN Products p ON sl.Product_ID = p.Product_ID
+    JOIN Orders o ON s.Orders_ID = o.Orders_ID
+    WHERE o.Customer_ID = parCustID
     ORDER BY s.Date_Completed DESC;
 END //
 
@@ -292,7 +295,7 @@ BEGIN
     DECLARE v_NewID VARCHAR(10);
     DECLARE v_Count INT;
 
-    SELECT COUNT(*) INTO v_Count 
+    SELECT COUNT(*) INTO v_Count
     FROM Products;
 
     SET v_NewID = CONCAT('P', LPAD(v_Count + 1, 4, '0'));
@@ -308,8 +311,8 @@ BEGIN
     DECLARE v_Count INT;
     SET v_DateCode = DATE_FORMAT(CURDATE(), '%d%m%y');
 
-    SELECT COUNT(*) INTO v_Count 
-    FROM Production 
+    SELECT COUNT(*) INTO v_Count
+    FROM Production
     WHERE Date_In = CURDATE();
 
     SET v_NewID = CONCAT('PR', v_DateCode, LPAD(v_Count + 1, 2, '0'));
@@ -338,8 +341,8 @@ BEGIN
     DECLARE v_Count INT;
     DECLARE v_ActiveBatchID VARCHAR(10);
 
-    SELECT Batch_ID INTO v_ActiveBatchID 
-    FROM Batches 
+    SELECT Batch_ID INTO v_ActiveBatchID
+    FROM Batches
     WHERE Status = 1 LIMIT 1;
 
     IF v_ActiveBatchID IS NULL THEN
@@ -347,8 +350,8 @@ BEGIN
     ELSE
         SET v_DateCode = DATE_FORMAT(CURDATE(), '%d%m%y');
 
-        SELECT COUNT(*) INTO v_Count 
-        FROM Orders 
+        SELECT COUNT(*) INTO v_Count
+        FROM Orders
         WHERE Order_For_Date = CURDATE();
 
         SET v_NewID = CONCAT('O', v_DateCode, LPAD(v_Count + 1, 2, '0'));
@@ -365,12 +368,12 @@ CREATE PROCEDURE pAddItemToOrder(IN parOrderID VARCHAR(10), IN parProdID VARCHAR
 BEGIN
     DECLARE v_Status INT;
 
-    SELECT Order_Status INTO v_Status 
-    FROM Orders 
+    SELECT Order_Status INTO v_Status
+    FROM Orders
     WHERE Orders_ID = parOrderID;
 
     IF v_Status = 0 THEN
-        INSERT INTO Order_List (Product_ID, Orders_ID, Quantity, Order_Date) 
+        INSERT INTO Order_List (Product_ID, Orders_ID, Quantity, Order_Date)
         VALUES (parProdID, parOrderID, parQty, CURDATE());
         SELECT 'Item Added' AS Message;
     ELSE
@@ -402,8 +405,8 @@ END //
 -- pUpdateStatus
 CREATE PROCEDURE pUpdateStatus(IN parOrderID VARCHAR(10), IN parNewStatus INT)
 BEGIN
-    UPDATE Orders 
-    SET Order_Status = parNewStatus 
+    UPDATE Orders
+    SET Order_Status = parNewStatus
     WHERE Orders_ID = parOrderID;
 
     SELECT 'Status Updated' AS Message;
@@ -418,17 +421,17 @@ BEGIN
     DECLARE v_Suffix VARCHAR(2);
     SET v_DateCode = DATE_FORMAT(CURDATE(), '%d%m%y');
 
-    SELECT COUNT(*) INTO v_Count 
-    FROM Sales 
+    SELECT COUNT(*) INTO v_Count
+    FROM Sales
     WHERE Date_Completed = CURDATE();
 
     SET v_Suffix = LPAD(v_Count + 1, 2, '0');
     SET v_SalesID = CONCAT('S', v_DateCode, v_Suffix);
 
-    INSERT INTO Sales (Sales_ID, Orders_ID, Date_Completed, Payment, status_del) 
+    INSERT INTO Sales (Sales_ID, Orders_ID, Date_Completed, Payment, status_del)
     VALUES (v_SalesID, parOrderID, CURDATE(), parPayment, 0);
 
-    INSERT INTO Sales_List (Product_ID, Sales_ID, Quantity, Total_Price) 
+    INSERT INTO Sales_List (Product_ID, Sales_ID, Quantity, Total_Price)
     SELECT ol.Product_ID, v_SalesID, ol.Quantity, (ol.Quantity * p.Sell_Price) FROM Order_List ol JOIN Products p ON ol.Product_ID = p.Product_ID WHERE ol.Orders_ID = parOrderID;
     SELECT 'Successfully added to Sales' AS Message;
 END //
@@ -442,23 +445,23 @@ BEGIN
     DECLARE v_Count INT;
     DECLARE v_Suffix VARCHAR(2);
 
-    SELECT COUNT(*) INTO v_Check 
-    FROM Sales 
+    SELECT COUNT(*) INTO v_Check
+    FROM Sales
     WHERE Sales_ID = parSalesID;
 
     IF v_Check > 0 THEN
-        SELECT UPPER(SUBSTRING(Customer_Name, 1, 3)) INTO v_CustInitials 
-        FROM Customers 
+        SELECT UPPER(SUBSTRING(Customer_Name, 1, 3)) INTO v_CustInitials
+        FROM Customers
         WHERE Customer_ID = parCustID;
 
-        SELECT COUNT(*) INTO v_Count 
-        FROM Feedback 
+        SELECT COUNT(*) INTO v_Count
+        FROM Feedback
         WHERE Feedback_ID LIKE CONCAT('F', v_CustInitials, '%');
 
         SET v_Suffix = LPAD(v_Count + 1, 2, '0');
         SET v_FeedbackID = CONCAT('F', v_CustInitials, v_Suffix);
 
-        INSERT INTO Feedback (Feedback_ID, Sales_ID, Customer_ID, Feedback_comment, Rating, status_del) 
+        INSERT INTO Feedback (Feedback_ID, Sales_ID, Customer_ID, Feedback_comment, Rating, status_del)
         VALUES (v_FeedbackID, parSalesID, parCustID, parComment, parRating, 0);
         SELECT 'Successfully submitted to Feedback' AS Message;
     ELSE
@@ -474,62 +477,40 @@ BEGIN
     DECLARE v_Suffix VARCHAR(2);
     SET v_DateCode = DATE_FORMAT(parDate, '%d%m%y');
 
-    SELECT COUNT(*) INTO v_Count 
-    FROM Orders 
+    SELECT COUNT(*) INTO v_Count
+    FROM Orders
     WHERE Order_For_Date = parDate;
 
     SET v_Suffix = LPAD(v_Count + 1, 2, '0');
     SET parID = CONCAT('O', v_DateCode, v_Suffix);
 END //
 
-<<<<<<< Updated upstream:2. PLSQL_kajjabase.sql
 -- pOpenBatch
-CREATE PROCEDURE pOpenBatch(IN parName VARCHAR(50), IN parCloseDate DATETIME, IN parDeliveryDate DATE)
-=======
-DROP PROCEDURE IF EXISTS pOpenBatch;
-DELIMITER //
 CREATE PROCEDURE pOpenBatch(
     IN parName VARCHAR(50),
     IN parCloseDate DATETIME,
     IN parDeliveryDate DATE
 )
->>>>>>> Stashed changes:kajjabase_DDL.sql
 BEGIN
     DECLARE v_NewID VARCHAR(10);
     DECLARE v_DateCode VARCHAR(6);
     DECLARE v_Count INT;
     DECLARE v_CheckActive INT;
 
-<<<<<<< Updated upstream:2. PLSQL_kajjabase.sql
-    SELECT COUNT(*) INTO v_CheckActive 
-    FROM Batches 
-    WHERE Status = 1;
-=======
-    IF parCloseDate <= NOW() THEN
+    IF parCloseDate < NOW() THEN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Error: Batch Close Date must be in the future.';
     END IF;
-
-    IF parDeliveryDate < DATE(parCloseDate) THEN
-        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Error: Delivery Date cannot be before the Batch closes.';
+    IF DATE(parDeliveryDate) < DATE(parCloseDate) THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Error: Delivery Date must be at least 1 day AFTER the batch closes to allow for production.';
     END IF;
 
     SELECT COUNT(*) INTO v_CheckActive FROM Batches WHERE Status = 1;
->>>>>>> Stashed changes:kajjabase_DDL.sql
 
     IF v_CheckActive > 0 THEN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Error: A Batch is already OPEN. Close it first.';
     ELSE
-<<<<<<< Updated upstream:2. PLSQL_kajjabase.sql
-        SET v_DateCode = DATE_FORMAT(NOW(), '%d%m%y');
-
-        SELECT COUNT(*) INTO v_Count 
-        FROM Batches 
-        WHERE DATE(Open_Date) = CURDATE();
-
-=======
         SET v_DateCode = DATE_FORMAT(NOW(), '%m%y');
         SELECT COUNT(*) INTO v_Count FROM Batches WHERE DATE(Open_Date) = CURDATE();
->>>>>>> Stashed changes:kajjabase_DDL.sql
         SET v_NewID = CONCAT('B', v_DateCode, LPAD(v_Count + 1, 2, '0'));
 
         INSERT INTO Batches (Batch_ID, Batch_Name, Open_Date, Close_Date, Delivery_Date, Status, status_del)
@@ -538,15 +519,16 @@ BEGIN
         SELECT CONCAT('Pre-Order Started: ', v_NewID) AS Message;
     END IF;
 END //
-DELIMITER ;
+
+
 
 -- pCloseBatch
 CREATE PROCEDURE pCloseBatch()
 BEGIN
     DECLARE v_BatchID VARCHAR(10);
 
-    SELECT Batch_ID INTO v_BatchID 
-    FROM Batches 
+    SELECT Batch_ID INTO v_BatchID
+    FROM Batches
     WHERE Status = 1 LIMIT 1;
 
     IF v_BatchID IS NOT NULL THEN
@@ -558,13 +540,13 @@ BEGIN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Error: No Open Batch found.';
     END IF;
 END //
-  
+
 /*==============================================================*/
 /* TRIGGER                                                      */
 /*==============================================================*/
 -- tAutoFillWaste
 CREATE TRIGGER tAutoFillWaste
-BEFORE INSERT 
+BEFORE INSERT
 ON Waste
 FOR EACH ROW
 BEGIN
@@ -580,9 +562,9 @@ BEGIN
 END //
 
 -- tStockCheck
-CREATE TRIGGER tStockCheck 
-BEFORE INSERT 
-ON Sales_List 
+CREATE TRIGGER tStockCheck
+BEFORE INSERT
+ON Sales_List
 FOR EACH ROW
 BEGIN
     IF fLiveStock(NEW.Product_ID) < NEW.Quantity THEN
@@ -591,9 +573,9 @@ BEGIN
 END //
 
 -- tCheckRating
-CREATE TRIGGER tCheckRating 
-BEFORE INSERT 
-ON Feedback 
+CREATE TRIGGER tCheckRating
+BEFORE INSERT
+ON Feedback
 FOR EACH ROW
 BEGIN
     IF NEW.Rating < 1 THEN SET NEW.Rating = 1; END IF;
@@ -601,18 +583,18 @@ BEGIN
 END //
 
 -- tCloseOrder
-CREATE TRIGGER tCloseOrder 
-AFTER INSERT 
-ON Sales 
+CREATE TRIGGER tCloseOrder
+AFTER INSERT
+ON Sales
 FOR EACH ROW
 BEGIN
     UPDATE Orders SET Order_Status = 2 WHERE Orders_ID = NEW.Orders_ID;
 END //
 
 -- tAutoPrice
-CREATE TRIGGER tAutoPrice 
-BEFORE INSERT 
-ON Sales_List 
+CREATE TRIGGER tAutoPrice
+BEFORE INSERT
+ON Sales_List
 FOR EACH ROW
 BEGIN
     DECLARE v_Price  FLOAT(12, 2);
@@ -621,9 +603,9 @@ BEGIN
 END //
 
 -- tPreventFutureDate
-CREATE TRIGGER tPreventFutureDate 
-BEFORE INSERT 
-ON Orders 
+CREATE TRIGGER tPreventFutureDate
+BEFORE INSERT
+ON Orders
 FOR EACH ROW
 BEGIN
     IF NEW.Date_In > CURDATE() THEN
@@ -632,9 +614,9 @@ BEGIN
 END //
 
 -- tEnsureValidEmail
-CREATE TRIGGER tEnsureValidEmail 
-BEFORE INSERT 
-ON Customers 
+CREATE TRIGGER tEnsureValidEmail
+BEFORE INSERT
+ON Customers
 FOR EACH ROW
 BEGIN
     IF NEW.Cust_Email NOT LIKE '%@%' THEN
@@ -643,9 +625,9 @@ BEGIN
 END //
 
 -- tPreventDeleteActiveCustomer
-CREATE TRIGGER tPreventDeleteActiveCustomer 
-BEFORE UPDATE 
-ON Customers 
+CREATE TRIGGER tPreventDeleteActiveCustomer
+BEFORE UPDATE
+ON Customers
 FOR EACH ROW
 BEGIN
     DECLARE v_ActiveOrders INT;
